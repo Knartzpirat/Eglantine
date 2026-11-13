@@ -35,21 +35,21 @@ LsfgAlphaPasses::LsfgAlphaPasses(const Device& device, const LsfgShaders& shader
     using namespace VideoCore::FrameGen::PerformanceShader;
 
     passes[0] = LsfgPass(device, shaders, ALPHA[0],
-                         {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {1u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {1u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[1] = LsfgPass(device, shaders, ALPHA[1],
-                         {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {1u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {1u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[2] = LsfgPass(device, shaders, ALPHA[2],
-                         {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {1u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {2u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[3] = LsfgPass(device, shaders, ALPHA[3],
-                         {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {2u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
 }
 
 LsfgAlpha::LsfgAlpha(const Device& device, MemoryAllocator& memory_allocator,

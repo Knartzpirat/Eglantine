@@ -34,43 +34,43 @@ LsfgDelta::LsfgDelta(const Device& device, MemoryAllocator& memory_allocator,
     using namespace VideoCore::FrameGen::PerformanceShader;
 
     passes[0] = LsfgPass(device, shaders, DELTA[0],
-                         {{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {5, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {5u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {3u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[1] = LsfgPass(device, shaders, DELTA[1],
-                         {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {3u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {2u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[2] = LsfgPass(device, shaders, DELTA[2],
-                         {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {2u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[3] = LsfgPass(device, shaders, DELTA[3],
-                         {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {2u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[4] = LsfgPass(device, shaders, DELTA[4],
-                         {{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {4u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {1u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     passes[5] = LsfgPass(device, shaders, DELTA[5],
-                         {{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {6, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {6u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {1u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     for (size_t i = 6; i < LSFG_DELTA_STAGES - 1; ++i) {
         passes[i] = LsfgPass(device, shaders, DELTA[i],
-                             {{1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                              {1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                              {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                             {{1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                              {1u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                              {1u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
     }
     passes[9] = LsfgPass(device, shaders, DELTA[9],
-                         {{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLER},
-                          {2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                          {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                         {{1u, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                          {2u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                          {1u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
 
     const VkExtent2D extent = (*inputs)[0][0].Extent();
     for (auto& image : temp1) {

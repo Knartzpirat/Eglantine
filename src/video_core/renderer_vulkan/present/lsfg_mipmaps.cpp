@@ -33,10 +33,10 @@ LsfgMipmaps::LsfgMipmaps(const Device& device, MemoryAllocator& memory_allocator
     using namespace VideoCore::FrameGen::PerformanceShader;
 
     pass = LsfgPass(device, shaders, MIPMAPS,
-                    {{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
-                     {1, VK_DESCRIPTOR_TYPE_SAMPLER},
-                     {1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                     {LSFG_MIP_LEVELS, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                    {{1u, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+                     {1u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                     {1u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                     {static_cast<u32>(LSFG_MIP_LEVELS), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
 
     const VkExtent2D input_extent = (*frames)[0].Extent();
     flow_extent = VkExtent2D{

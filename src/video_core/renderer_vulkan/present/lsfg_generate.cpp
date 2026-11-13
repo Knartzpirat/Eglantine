@@ -54,10 +54,10 @@ LsfgGenerate::LsfgGenerate(const Device& device, const LsfgShaders& shaders,
     using namespace VideoCore::FrameGen::PerformanceShader;
 
     pass = LsfgPass(device, shaders, GENERATE,
-                    {{1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
-                     {2, VK_DESCRIPTOR_TYPE_SAMPLER},
-                     {5, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
-                     {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
+                    {{1u, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+                     {2u, VK_DESCRIPTOR_TYPE_SAMPLER},
+                     {5u, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+                     {1u, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE}});
 
     sampler = resources.GetSampler();
     edge_sampler =
