@@ -243,7 +243,7 @@ json Screenshot(ToolState& state, const json& params) {
     const auto done = std::make_shared<std::promise<bool>>();
     auto future = done->get_future();
     renderer.RequestScreenshot(
-        pixels->data(), [pixels, done](bool invert_y) { done->set_value(invert_y); }, layout);
+        pixels->data(), [done](bool invert_y) { done->set_value(invert_y); }, layout);
     const int timeout = Param<int>(params, "timeout_s", 5, 1, 30);
     if (!WaitReady(state, future, std::chrono::seconds{timeout})) {
         throw std::runtime_error{
