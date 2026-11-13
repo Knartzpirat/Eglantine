@@ -101,7 +101,7 @@ TEST_CASE("UniqueFunction", "[common]") {
         };
         Foo object{&num_destroyed};
         {
-            Common::UniqueFunction<void> func = [object_inner = std::move(object)] {};
+            Common::UniqueFunction<void> func = [object_inner = std::move(object)] { (void)object_inner; };
             REQUIRE(num_destroyed == 0);
         }
         REQUIRE(num_destroyed == 1);

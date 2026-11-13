@@ -142,7 +142,7 @@ TEST_CASE("CalibrationConfigurationJob cancellation joins its worker", "[input_c
         {
             InputCommon::CemuhookUDP::CalibrationConfigurationJob job(
                 server.GetHost(), server.GetPort(),
-                [lifetime](InputCommon::CemuhookUDP::CalibrationConfigurationJob::Status) {},
+                [lifetime](InputCommon::CemuhookUDP::CalibrationConfigurationJob::Status) { (void)lifetime; },
                 [](u16, u16, u16, u16) {});
             lifetime.reset();
             job.Stop();

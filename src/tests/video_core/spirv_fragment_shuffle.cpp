@@ -167,8 +167,8 @@ TEST_CASE("Fragment workaround leaves other stages on native shuffles",
                 }
                 const bool fallback = general_fallback ||
                                       (fragment_fallback && stage == Stage::Fragment);
-                CHECK(broadcasts == (fallback ? 192 : 0));
-                CHECK(shuffles == (fallback ? 0 : 3));
+                CHECK(broadcasts == (fallback ? 192u : 0u));
+                CHECK(shuffles == (fallback ? 0u : 3u));
             }
         }
     }
