@@ -20,6 +20,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <boost/container/small_vector.hpp>
@@ -63,6 +64,7 @@
 #include "video_core/nx2_debug_control.h"
 #include "video_core/nx2_diag.h"
 #include "video_core/nx2_profile.h"
+#include "video_core/nx2_readback_trace.h"
 
 namespace Vulkan {
 
@@ -1483,10 +1485,26 @@ bool RasterizerVulkan::MustFlushRegion(DAddr addr, u64 size, VideoCommon::CacheT
 }
 
 VideoCore::RasterizerDownloadArea RasterizerVulkan::GetFlushArea(DAddr addr, u64 size) {
+    namespace Trace = VideoCommon::ReadbackTrace;
+    const auto trace = [&](const char* source, const VideoCore::RasterizerDownloadArea& area,
+                           Trace::Limiter& limiter, u32 max_lines) {
+        if (u64 suppressed{}; limiter.Allow(suppressed, max_lines)) {
+            LOG_INFO(HW_GPU,
+                     "readback: CPU read {:#x}+{:#x} answered by {}: area [{:#x}, {:#x}) {} "
+                     "(thread {:04x}, {} lines dropped)",
+                     addr, size, source, area.start_address, area.end_address,
+                     area.preemtive ? "no flush" : "flush",
+                     std::hash<std::thread::id>{}(std::this_thread::get_id()) & 0xffff, suppressed);
+        }
+    };
     {
         std::scoped_lock lock{texture_cache.mutex};
         auto area = texture_cache.GetFlushArea(addr, size);
         if (area) {
+            if (Trace::Enabled()) {
+                static Trace::Limiter limiter;
+                trace("texture cache", *area, limiter, 48);
+            }
             return *area;
         }
     }
@@ -1494,6 +1512,12 @@ VideoCore::RasterizerDownloadArea RasterizerVulkan::GetFlushArea(DAddr addr, u64
         std::scoped_lock lock{buffer_cache.mutex};
         auto area = buffer_cache.GetFlushArea(addr, size);
         if (area) {
+            if (Trace::Enabled()) {
+                static Trace::Limiter flushed;
+                static Trace::Limiter clean;
+                trace("buffer cache", *area, area->preemtive ? clean : flushed,
+                      area->preemtive ? 12 : 48);
+            }
             return *area;
         }
     }
@@ -1811,7 +1835,20 @@ bool RasterizerVulkan::AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Surf
                                              const Tegra::Engines::Fermi2D::Surface& dst,
                                              const Tegra::Engines::Fermi2D::Config& copy_config) {
     std::scoped_lock lock{texture_cache.mutex};
-    return texture_cache.BlitImage(dst, src, copy_config);
+    const bool accelerated = texture_cache.BlitImage(dst, src, copy_config);
+    if (VideoCommon::ReadbackTrace::Enabled() && dst.width >= 1024) {
+        static VideoCommon::ReadbackTrace::Limiter limiter;
+        if (u64 suppressed{}; limiter.Allow(suppressed, 16)) {
+            LOG_INFO(HW_GPU,
+                     "readback: 2D blit {:#x} {}x{} {} -> {:#x} {}x{} {}: {} ({} lines dropped)",
+                     src.Address(), src.width, src.height,
+                     src.linear == Tegra::Engines::Fermi2D::MemoryLayout::Pitch ? "pitch" : "block",
+                     dst.Address(), dst.width, dst.height,
+                     dst.linear == Tegra::Engines::Fermi2D::MemoryLayout::Pitch ? "pitch" : "block",
+                     accelerated ? "accelerated" : "software", suppressed);
+        }
+    }
+    return accelerated;
 }
 
 bool RasterizerVulkan::UsesNvidiaDlss() const {

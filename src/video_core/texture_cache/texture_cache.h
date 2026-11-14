@@ -32,6 +32,7 @@
 #include "video_core/texture_cache/util.h"
 #include "video_core/nx2.h"
 #include "video_core/nx2_profile.h"
+#include "video_core/nx2_readback_trace.h"
 #include "video_core/textures/decoders.h"
 
 namespace VideoCommon {
@@ -992,6 +993,17 @@ void TextureCache<P>::DownloadMemory(DAddr cpu_addr, size_t size) {
     };
     for (const ImageId image_id : images) {
         Image& image = slot_images[image_id];
+        if (ReadbackTrace::Enabled()) {
+            static ReadbackTrace::Limiter limiter;
+            if (u64 suppressed{}; limiter.Allow(suppressed)) {
+                LOG_INFO(HW_GPU,
+                         "readback: image [{:#x}, {:#x}) {}x{} {} type {} downloaded for a flush "
+                         "of {:#x}+{:#x} ({} lines dropped)",
+                         image.cpu_addr, image.cpu_addr_end, image.info.size.width,
+                         image.info.size.height, image.info.format, static_cast<u32>(image.info.type),
+                         cpu_addr, size, suppressed);
+            }
+        }
         if (!pending.empty() && pending_bytes + image.unswizzled_size_bytes > MaxBatchBytes) {
             flush_pending();
         }
@@ -1023,6 +1035,17 @@ std::optional<VideoCore::RasterizerDownloadArea> TextureCache<P>::GetFlushArea(D
         for (auto image_view_id : image.image_view_ids) {
             auto& image_view = slot_image_views[image_view_id];
             image_view.flags |= ImageViewFlagBits::PreemtiveDownload;
+        }
+        if (ReadbackTrace::Enabled()) {
+            static ReadbackTrace::Limiter limiter;
+            if (u64 suppressed{}; limiter.Allow(suppressed)) {
+                LOG_INFO(HW_GPU,
+                         "readback: GPU-modified image [{:#x}, {:#x}) {}x{} {} type {}, flushed "
+                         "on a read before: {} ({} lines dropped)",
+                         image.cpu_addr, image.cpu_addr_end, image.info.size.width,
+                         image.info.size.height, image.info.format, static_cast<u32>(image.info.type),
+                         image.info.forced_flushed, suppressed);
+            }
         }
         area->preemtive &= image.info.forced_flushed;
         image.info.forced_flushed = true;
@@ -1521,6 +1544,10 @@ void TextureCache<P>::PopAsyncFlushes() {
                     download_buffer.mapped_span.subspan(download_buffer.offset);
                 gpu_memory->WriteBlockUnsafe(buffer_info.address, download_span.data(),
                                              buffer_info.size);
+                if (ReadbackTrace::Enabled()) {
+                    LOG_INFO(HW_GPU, "readback: image-to-buffer copy written to guest {:#x}+{:#x}",
+                             buffer_info.address, buffer_info.size);
+                }
                 slot_buffer_downloads.erase(download_info.object_id);
             }
         }
@@ -1589,7 +1616,12 @@ ImageId TextureCache<P>::DmaImageId(const Tegra::DMA::ImageOperand& operand, boo
     if (!is_upload && !image.info.dma_downloaded) {
         // Force a full sync.
         image.info.dma_downloaded = true;
-        return NULL_IMAGE_ID;
+        // Not for Switch 2 titles: the full sync writes the whole image back over its guest
+        // memory, and Pokopia crashed on pixel data read as pointers 18 ms after such a copy.
+        // Their accelerated copy is finished at once (DownloadImageIntoBuffer).
+        if (!gpu_memory->UsesNativeTiling()) {
+            return NULL_IMAGE_ID;
+        }
     }
     const auto base = image.TryFindBase(operand.address);
     if (!base) {
@@ -1674,7 +1706,34 @@ void TextureCache<P>::DownloadImageIntoBuffer(typename TextureCache<P>::Image* i
                                               size_t buffer_offset,
                                               std::span<const VideoCommon::BufferImageCopy> copies,
                                               GPUVAddr address, size_t size) {
+    if (ReadbackTrace::Enabled()) {
+        LOG_INFO(HW_GPU, "readback: image [{:#x}, {:#x}) {}x{} {} copied to buffer {:#x}+{:#x}",
+                 image->cpu_addr, image->cpu_addr_end, image->info.size.width,
+                 image->info.size.height, image->info.format, address, size);
+    }
     if constexpr (IMPLEMENTS_ASYNC_DOWNLOADS) {
+        if (gpu_memory->UsesNativeTiling()) {
+            // Switch 2 titles read the buffer right after the copy, before the next fence would
+            // write it to guest memory (Pokopia's photos: read 36 us after the copy, written
+            // 1.7 ms later; the saved pictures were partly stale or empty). Finish it here.
+            auto download_map = runtime.DownloadStagingBuffer(size);
+            std::array buffers{
+                buffer,
+                download_map.buffer,
+            };
+            std::array<size_t, 2> buffer_offsets{
+                buffer_offset,
+                download_map.offset,
+            };
+            image->DownloadMemory(buffers, buffer_offsets, copies);
+            runtime.Finish();
+            gpu_memory->WriteBlockUnsafe(address, download_map.mapped_span.data(), size);
+            if (ReadbackTrace::Enabled()) {
+                LOG_INFO(HW_GPU, "readback: image-to-buffer copy written to guest {:#x}+{:#x}",
+                         address, size);
+            }
+            return;
+        }
         const BufferDownload new_buffer_download{address, size};
         auto slot = slot_buffer_downloads.insert(new_buffer_download);
         const PendingDownload new_download{false, uncommitted_async_buffers.size(), slot};

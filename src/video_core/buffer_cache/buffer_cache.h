@@ -22,6 +22,7 @@
 #include "video_core/host1x/gpu_device_memory_manager.h"
 #include "video_core/nx2.h"
 #include "video_core/nx2_profile.h"
+#include "video_core/nx2_readback_trace.h"
 #include "video_core/texture_cache/util.h"
 
 namespace VideoCommon {
@@ -868,6 +869,22 @@ void BufferCache<P>::PopAsyncFlushes() {
 
 template <class P>
 void BufferCache<P>::ClaimCpuWrites(std::span<const std::pair<DAddr, u64>> ranges) {
+    if (ReadbackTrace::Enabled()) {
+        // GPU-written bytes these collected CPU writes take over: they are not downloaded again.
+        u64 claimed = 0;
+        DAddr first = 0;
+        for (const auto& [device_addr, size] : ranges) {
+            gpu_modified_ranges.ForEachInRange(device_addr, size, [&](DAddr start, DAddr end) {
+                first = claimed == 0 ? start : first;
+                claimed += end - start;
+            });
+        }
+        if (claimed >= 64_KiB) {
+            LOG_INFO(HW_GPU,
+                     "readback: collected CPU writes drop {:#x} GPU-written bytes from {:#x} on",
+                     claimed, first);
+        }
+    }
     for (const auto& [device_addr, size] : ranges) {
         if (IsRegionGpuModified(device_addr, size)) {
             ClearDownload(device_addr, size);
@@ -920,6 +937,27 @@ void BufferCache<P>::PopAsyncBuffers() {
     // This runs on the fencing thread while the CPU keeps writing: CPU writes collected since the
     // copy was taken are newer than it, and the GPU thread hasn't dropped them from `ranges` yet.
     const Common::RangeSet<DAddr> cpu_written = PendingCpuWriteRanges();
+    if (ReadbackTrace::Enabled()) {
+        u64 total = 0;
+        u64 kept_back = 0;
+        for (const auto& copy : downloads) {
+            const DAddr device_addr = static_cast<DAddr>(copy.src_offset);
+            ranges.ForEachInRange(device_addr, copy.size, [&](DAddr start, DAddr end) {
+                total += end - start;
+                cpu_written.ForEachInRange(start, end - start, [&](DAddr lower, DAddr upper) {
+                    kept_back += upper - lower;
+                });
+            });
+        }
+        if (total >= 1_MiB || kept_back >= 64_KiB) {
+            LOG_INFO(HW_GPU,
+                     "readback: fence download of {:#x} bytes in {} copies from {:#x} on, {:#x} "
+                     "bytes not written (pending CPU writes)",
+                     total, downloads.size(),
+                     downloads.empty() ? 0 : static_cast<DAddr>(downloads.front().src_offset),
+                     kept_back);
+        }
+    }
     for (const auto& copy : downloads) {
         const DAddr device_addr = static_cast<DAddr>(copy.src_offset);
         const u64 dst_offset = copy.dst_offset - base_offset;
@@ -1895,6 +1933,18 @@ void BufferCache<P>::MarkWrittenBuffer(BufferId buffer_id, DAddr device_addr, u3
     // from gpu_modified_ranges (the next fence downloads it instead).
     for (auto& ranges : pending_download_ranges) {
         ranges.Subtract(device_addr, size);
+    }
+    if (ReadbackTrace::Enabled() && size >= 4_MiB) {
+        static ReadbackTrace::Limiter limiter;
+        if (u64 suppressed{}; limiter.Allow(suppressed, 16)) {
+            u64 pending = 0;
+            PendingCpuWriteRanges().ForEachInRange(
+                device_addr, size, [&](DAddr start, DAddr end) { pending += end - start; });
+            LOG_INFO(HW_GPU,
+                     "readback: GPU write to buffer {:#x}+{:#x}, downloaded at fences: {}, "
+                     "pending CPU writes in it: {:#x} bytes ({} lines dropped)",
+                     device_addr, size, DownloadsAtFence(device_addr, size), pending, suppressed);
+        }
     }
     memory_tracker.MarkRegionAsGpuModified(device_addr, size);
     MarkVertexBuffersStale(device_addr, size);

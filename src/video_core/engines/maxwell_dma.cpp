@@ -15,6 +15,7 @@
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/guest_memory.h"
 #include "video_core/memory_manager.h"
+#include "video_core/nx2_readback_trace.h"
 #include "video_core/renderer_base.h"
 #include "video_core/textures/decoders.h"
 
@@ -88,6 +89,23 @@ void MaxwellDMA::Launch() {
             LOG_INFO(HW_GPU, "nx2 DMA {:#x} -> {:#x} lines={} length={} launch={:#x}",
                      static_cast<GPUVAddr>(regs.offset_in), GPUVAddr(regs.offset_out),
                      regs.line_count, regs.line_length_in, regs.reg_array[0xc0]);
+        }
+    }
+
+    if (VideoCommon::ReadbackTrace::Enabled() && regs.launch_dma.multi_line_enable &&
+        regs.line_count >= 256) {
+        static VideoCommon::ReadbackTrace::Limiter limiter;
+        if (u64 suppressed{}; limiter.Allow(suppressed, 16)) {
+            LOG_INFO(HW_GPU,
+                     "readback: DMA {:#x} ({}) -> {:#x} ({}) {} lines of {}, pitch out {:#x} "
+                     "({} lines dropped)",
+                     static_cast<GPUVAddr>(regs.offset_in),
+                     regs.launch_dma.src_memory_layout == LaunchDMA::MemoryLayout::PITCH ? "pitch"
+                                                                                         : "block",
+                     GPUVAddr(regs.offset_out),
+                     regs.launch_dma.dst_memory_layout == LaunchDMA::MemoryLayout::PITCH ? "pitch"
+                                                                                         : "block",
+                     regs.line_count, regs.line_length_in, regs.pitch_out, suppressed);
         }
     }
 
